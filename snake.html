@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Snake Game Pro</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.5s, color 0.5s;
+    }
+
+    canvas {
+      border: 3px solid lime;
+      background-color: #111;
+      touch-action: none;
+    }
+
+    h1 {
+      margin: 10px;
+    }
+
+    #score {
+      font-size: 24px;
+    }
+
+    .controls, .options {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 10px 15px;
+      background: #0f0;
+      color: #000;
+      border: none;
+      font-weight: bold;
+      border-radius: 5px;
+      font-size: 16px;
+      transition: background 0.2s;
+    }
+
+    .btn:active {
+      background: #0a0;
+    }
+
+    .dark {
+      background: #000;
+      color: #0f0;
+    }
+
+    .light {
+      background: #fff;
+      color: #111;
+    }
+
+    .light canvas {
+      border-color: #333;
+      background: #eee;
+    }
+
+    .light .btn {
+      background: #333;
+      color: #fff;
+    }
+
+    .light .btn:active {
+      background: #666;
+    }
+  </style>
+</head>
+<body class="dark">
+  <h1>Snake Game Pro 🐍</h1>
+  <div id="score">Score: 0</div>
+  <canvas id="game" width="400" height="400"></canvas>
+
+  <div class="controls">
+    <button class="btn" onclick="changeDirection('up')">⬆️</button>
+    <button class="btn" onclick="changeDirection('left')">⬅️</button>
+    <button class="btn" onclick="changeDirection('down')">⬇️</button>
+    <button class="btn" onclick="changeDirection('right')">➡️</button>
+  </div>
+
+  <div class="options">
+    <button class="btn" onclick="toggleTheme()">🌙/☀️ Toggle Theme</button>
+  </div>
+
+  <!-- Sound effects -->
+  <audio id="eat-sound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+  <audio id="gameover-sound" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg" preload="auto"></audio>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreText = document.getElementById("score");
+    const eatSound = document.getElementById("eat-sound");
+    const gameOverSound = document.getElementById("gameover-sound");
+    const body = document.body;
+
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
+
+    let snake = [{ x: 10, y: 10 }];
+    let dx = 1, dy = 0;
+    let food = randomFood();
+    let score = 0;
+    let speed = 150;
+    let gameInterval;
+
+    function randomFood() {
+      return {
+        x: Math.floor(Math.random() * tileCount),
+        y: Math.floor(Math.random() * tileCount)
+      };
+    }
+
+    function changeDirection(dir) {
+      switch (dir) {
+        case 'up': if (dy === 0) { dx = 0; dy = -1; } break;
+        case 'down': if (dy === 0) { dx = 0; dy = 1; } break;
+        case 'left': if (dx === 0) { dx = -1; dy = 0; } break;
+        case 'right': if (dx === 0) { dx = 1; dy = 0; } break;
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp") changeDirection('up');
+      if (e.key === "ArrowDown") changeDirection('down');
+      if (e.key === "ArrowLeft") changeDirection('left');
+      if (e.key === "ArrowRight") changeDirection('right');
+    });
+
+    function toggleTheme() {
+      body.classList.toggle("dark");
+      body.classList.toggle("light");
+    }
+
+    function gameLoop() {
+      const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+      // Collision detection
+      if (
+        head.x < 0 || head.x >= tileCount ||
+        head.y < 0 || head.y >= tileCount ||
+        snake.some(seg => seg.x === head.x && seg.y === head.y)
+      ) {
+        gameOverSound.play();
+        alert("Game Over! Your Score: " + score);
+        resetGame();
+        return;
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        eatSound.play();
+        food = randomFood();
+        adjustSpeed();
+      } else {
+        snake.pop();
+      }
+
+      draw();
+    }
+
+    function adjustSpeed() {
+      clearInterval(gameInterval);
+      speed = Math.max(50, 150 - score * 5); // Increases speed
+      gameInterval = setInterval(gameLoop, speed);
+    }
+
+    function draw() {
+      ctx.fillStyle = getComputedStyle(body).backgroundColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Snake
+      ctx.fillStyle = "#0f0";
+      snake.forEach(part => {
+        ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize - 1, gridSize - 1);
+      });
+
+      // Food
+      ctx.fillStyle = "red";
+      ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
+
+      scoreText.textContent = "Score: " + score + " | Speed: " + speed + "ms";
+    }
+
+    function resetGame() {
+      snake = [{ x: 10, y: 10 }];
+      dx = 1; dy = 0;
+      score = 0;
+      speed = 150;
+      food = randomFood();
+      clearInterval(gameInterval);
+      gameInterval = setInterval(gameLoop, speed);
+    }
+
+    // Start game
+    resetGame();
+  </script>
+</body>
+</html>
