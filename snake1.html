@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Snake Rover — Mobile Friendly</title>
+<style>
+  body {
+    margin: 0; 
+    background: #121212; 
+    color: #eee; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    height: 100vh;
+    user-select: none;
+  }
+  canvas {
+    background: #222;
+    border: 3px solid #0f0;
+    border-radius: 12px;
+    touch-action: none;
+  }
+  #score {
+    margin: 10px;
+    font-size: 24px;
+    letter-spacing: 2px;
+  }
+  .controls {
+    margin-top: 10px;
+    width: 180px;
+    display: grid;
+    grid-template-areas:
+      ". up ."
+      "left . right"
+      ". down .";
+    grid-gap: 10px;
+    user-select: none;
+  }
+  .controls button {
+    width: 50px;
+    height: 50px;
+    font-size: 28px;
+    border-radius: 10px;
+    background: #0a0;
+    color: #efe;
+    border: none;
+    opacity: 0.8;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .controls button:active {
+    opacity: 1;
+    background: #3c3;
+  }
+  .up { grid-area: up; }
+  .down { grid-area: down; }
+  .left { grid-area: left; }
+  .right { grid-area: right; }
+</style>
+</head>
+<body>
+
+<h1>Snake Rover</h1>
+<div id="score">Score: 0</div>
+<canvas id="gameCanvas" width="400" height="400"></canvas>
+
+<div class="controls">
+  <button class="up">↑</button>
+  <button class="left">←</button>
+  <button class="right">→</button>
+  <button class="down">↓</button>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const scoreDisplay = document.getElementById('score');
+
+  const gridSize = 20;  // Size of snake segments and food
+  const canvasSize = canvas.width; // 400x400
+  const tileCount = canvasSize / gridSize;
+
+  let snake = [
+    { x: 9, y: 9 },
+    { x: 8, y: 9 },
+    { x: 7, y: 9 }
+  ];
+
+  let food = { x: 0, y: 0 };
+  let direction = 'right';
+  let newDirection = direction;
+  let score = 0;
+  let gameOver = false;
+
+  function placeFood() {
+    food.x = Math.floor(Math.random() * tileCount);
+    food.y = Math.floor(Math.random() * tileCount);
+    // Ensure food doesn't spawn on the snake
+    while (snake.some(seg => seg.x === food.x && seg.y === food.y)) {
+      food.x = Math.floor(Math.random() * tileCount);
+      food.y = Math.floor(Math.random() * tileCount);
+    }
+  }
+
+  function drawRect(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
+  }
+
+  function drawSnake() {
+    snake.forEach((segment, index) => {
+      const color = index === 0 ? '#0f0' : '#0a0';  // Head bright, body darker green
+      drawRect(segment.x, segment.y, color);
+    });
+  }
+
+  function drawFood() {
+    drawRect(food.x, food.y, '#f00'); // Bright red food
+  }
+
+  function update() {
+    if(gameOver) return;
+
+    direction = newDirection;
+
+    // Calculate new head position
+    let head = { ...snake[0] };
+    if (direction === 'right') head.x++;
+    else if (direction === 'left') head.x--;
+    else if (direction === 'up') head.y--;
+    else if (direction === 'down') head.y++;
+
+    // Wrap around edges (optional)
+    if (head.x < 0) head.x = tileCount - 1;
+    if (head.x >= tileCount) head.x = 0;
+    if (head.y < 0) head.y = tileCount - 1;
+    if (head.y >= tileCount) head.y = 0;
+
+    // Check collision with self
+    if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+      gameOver = true;
+      alert('Game Over! Your score: ' + score);
+      resetGame();
+      return;
+    }
+
+    // Add new head to snake
+    snake.unshift(head);
+
+    // Check if food eaten
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      scoreDisplay.textContent = 'Score: ' + score;
+      placeFood();
+    } else {
+      snake.pop(); // remove tail if no food eaten
+    }
+  }
+
+  function clear() {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+  }
+
+  function gameLoop() {
+    clear();
+    update();
+    drawSnake();
+    drawFood();
+    if(!gameOver) setTimeout(gameLoop, 100);  // 10 FPS - adjust speed here
+  }
+
+  // Keyboard controls
+  document.addEventListener('keydown', e => {
+    if(e.key === 'ArrowUp' && direction !== 'down') newDirection = 'up';
+    else if(e.key === 'ArrowDown' && direction !== 'up') newDirection = 'down';
+    else if(e.key === 'ArrowLeft' && direction !== 'right') newDirection = 'left';
+    else if(e.key === 'ArrowRight' && direction !== 'left') newDirection = 'right';
+  });
+document.addEventListener('keydown', e => {
+  if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault();  // stop page from scrolling
+    if(e.key === 'ArrowUp' && direction !== 'down') newDirection = 'up';
+    else if(e.key === 'ArrowDown' && direction !== 'up') newDirection = 'down';
+    else if(e.key === 'ArrowLeft' && direction !== 'right') newDirection = 'left';
+    else if(e.key === 'ArrowRight' && direction !== 'left') newDirection = 'right';
+  }
+});
+
+  // Mobile buttons
+  const btns = {
+    up: document.querySelector('.up'),
+    down: document.querySelector('.down'),
+    left: document.querySelector('.left'),
+    right: document.querySelector('.right')
+  };
+
+  btns.up.addEventListener('click', () => {
+    if(direction !== 'down') newDirection = 'up';
+  });
+  btns.down.addEventListener('click', () => {
+    if(direction !== 'up') newDirection = 'down';
+  });
+  btns.left.addEventListener('click', () => {
+    if(direction !== 'right') newDirection = 'left';
+  });
+  btns.right.addEventListener('click', () => {
+    if(direction !== 'left') newDirection = 'right';
+  });
+
+  function resetGame() {
+    snake = [
+      { x: 9, y: 9 },
+      { x: 8, y: 9 },
+      { x: 7, y: 9 }
+    ];
+    direction = 'right';
+    newDirection = direction;
+    score = 0;
+    scoreDisplay.textContent = 'Score: ' + score;
+    gameOver = false;
+    placeFood();
+    gameLoop();
+  }
+
+  placeFood();
+  gameLoop();
+
+})();
+</script>
+</body>
+</html>
