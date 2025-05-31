@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Arrow Tap Game</title>
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background: #e6f5f2;
+      font-family: 'Segoe UI', Calibri, sans-serif;
+      touch-action: none; /* Prevent default touch behaviors */
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let WIDTH, HEIGHT;
+function resize() {
+  WIDTH = canvas.width = window.innerWidth;
+  HEIGHT = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+// Config
+const COLORS = {
+  bg: "#e6f5f2",
+  text: "#333",
+  arrow: "#4682B4",       // Steel Blue
+  surround: "#6495ED",    // Cornflower Blue
+  combo: "#6495ED",
+  memory: "#90EE90",      // Light Green
+  gameover: "#DC143C"     // Crimson
+};
+
+const directions = ["UP", "DOWN", "LEFT", "RIGHT"];
+let score = 0, combo = 0, highScore = 0, timeLimit = 1500;
+let centerArrow = randomDir();
+let lastTime = Date.now();
+let memoryMode = false;
+let gameRunning = true;
+
+function randomDir() {
+  return directions[Math.floor(Math.random() * directions.length)];
+}
+function getSymbol(dir) {
+  return { UP: "↑", DOWN: "↓", LEFT: "←", RIGHT: "→" }[dir];
+}
+function drawText(text, size, color, x, y, shadow = true) {
+  ctx.font = `${size}px Segoe UI, Calibri, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillStyle = shadow ? "#ccc" : color;
+  if (shadow) ctx.fillText(text, x + 3, y + 3);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+function draw() {
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  const centerX = WIDTH / 2;
+  const centerY = HEIGHT / 2;
+  const radius = Math.min(WIDTH, HEIGHT) * 0.3;
+  const angleGap = (2 * Math.PI) / 8;
+
+  // Draw surrounding arrows
+  for (let i = 0; i < 8; i++) {
+    const angle = i * angleGap;
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+    const dir = surroundDirs[i];
+    drawText(getSymbol(dir), 48, COLORS.surround, x, y);
+  }
+
+  // Center arrow
+  drawText(getSymbol(centerArrow), 80, COLORS.arrow, centerX, centerY);
+
+  // HUD
+  drawText(`Score: ${score}`, 30, COLORS.text, WIDTH * 0.12, HEIGHT * 0.08);
+  drawText(`Combo: ${combo}`, 30, COLORS.combo, WIDTH * 0.12, HEIGHT * 0.14);
+  drawText(`High Score: ${highScore}`, 24, COLORS.text, WIDTH - 120, HEIGHT * 0.08);
+  if (memoryMode)
+    drawText(`MEMORY MODE ACTIVE`, 24, COLORS.memory, WIDTH - 160, HEIGHT * 0.12);
+}
+function newRound() {
+  centerArrow = randomDir();
+  surroundDirs = Array.from({ length: 8 }, () => randomDir());
+  lastTime = Date.now();
+}
+let surroundDirs = Array.from({ length: 8 }, () => randomDir());
+
+function gameOver() {
+  gameRunning = false;
+  if (score > highScore) {
+    highScore = score;
+    memoryMode = true;
+  }
+
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  drawText("GAME OVER", 72, COLORS.gameover, WIDTH / 2, HEIGHT / 2 - 100);
+  drawText(`Score: ${score}`, 40, COLORS.text, WIDTH / 2, HEIGHT / 2);
+  drawText(`Combo: ${combo}`, 36, COLORS.combo, WIDTH / 2, HEIGHT / 2 + 50);
+  drawText(`High Score: ${highScore}`, 28, COLORS.text, WIDTH / 2, HEIGHT / 2 + 100);
+  if (memoryMode)
+    drawText("MEMORY MODE ACTIVE", 24, COLORS.memory, WIDTH / 2, HEIGHT / 2 + 150);
+  drawText("Press R to Retry or Q to Quit", 28, COLORS.text, WIDTH / 2, HEIGHT - 60);
+}
+
+function resetGame() {
+  score = 0;
+  combo = 0;
+  timeLimit = 1500;
+  memoryMode = false;
+  gameRunning = true;
+  newRound();
+  loop();
+}
+
+// Input
+window.addEventListener("keydown", (e) => {
+  if (!gameRunning) {
+    if (e.key.toLowerCase() === "r") resetGame();
+    if (e.key.toLowerCase() === "q") window.close();
+    return;
+  }
+
+  const keyMap = {
+    ArrowUp: "UP",
+    ArrowDown: "DOWN",
+    ArrowLeft: "LEFT",
+    ArrowRight: "RIGHT"
+  };
+
+  const correct = keyMap[e.key] === centerArrow;
+  if (correct) {
+    score++;
+    combo++;
+    if (score % 10 === 0 && timeLimit > 400) timeLimit -= 100;
+    newRound();
+  } else {
+    gameOver();
+  }
+});
+
+// Swipe Detection
+let touchStartX = 0;
+let touchStartY = 0;
+
+canvas.addEventListener('touchstart', function(e) {
+  touchStartX = e.changedTouches[0].screenX;
+  touchStartY = e.changedTouches[0].screenY;
+}, false);
+
+canvas.addEventListener('touchend', function(e) {
+  let touchEndX = e.changedTouches[0].screenX;
+  let touchEndY = e.changedTouches[0].screenY;
+
+  let deltaX = touchEndX - touchStartX;
+  let deltaY = touchEndY - touchStartY;
+
+  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    if (deltaX > 0) {
+      handleSwipe('RIGHT');
+    } else {
+      handleSwipe('LEFT');
+    }
+  } else {
+    if (deltaY > 0) {
+      handleSwipe('DOWN');
+    } else {
+      handleSwipe('UP');
+    }
+  }
+}, false);
+
+function handleSwipe(direction) {
+  if (!gameRunning) return;
+
+  const correct = direction === centerArrow;
+  if (correct) {
+    score++;
+    combo++;
+    if (score % 10 === 0 && timeLimit > 400) timeLimit -= 100;
+    newRound();
+  } else {
+    gameOver();
+  }
+}
+
+// Game loop
+function loop() {
+  if (!gameRunning) return;
+  draw();
+
+  if (Date.now() - lastTime > timeLimit) {
+    gameOver();
+    return;
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// Start game
+newRound();
+loop();
+</script>
+</body>
+</html>
